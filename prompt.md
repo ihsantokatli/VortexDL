@@ -1,0 +1,1 @@
+Read AGENTS.md, ARCHITECTURE.md, ROADMAP.md, and PROGRESS.md carefully. Align the entire workspace with the project name "VortexDL" and package "com.vortexdl.app", complete all remaining tasks in Phase 1 without leaving any placeholders, and update PROGRESS.md once finished.

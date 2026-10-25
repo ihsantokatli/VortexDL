@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VortexDL</string>
+
+    <string name="url_bar_hint">Search or enter address</string>
+    <string name="url_bar_description">Address and search bar</string>
+    <string name="action_back">Back</string>
+    <string name="action_forward">Forward</string>
+    <string name="action_reload">Reload page</string>
+    <string name="action_stop">Stop loading</string>
+    <string name="action_clear_address">Clear address</string>
+    <string name="action_go">Go</string>
+
+    <string name="detected_media_title">Detected media</string>
+    <string name="detected_media_description">Videos and streams captured from this page</string>
+    <plurals name="detected_media_count">
+        <item quantity="one">%1$d video found</item>
+        <item quantity="other">%1$d videos found</item>
+    </plurals>
+    <string name="detected_media_empty_title">No media captured yet</string>
+    <string name="detected_media_empty_body">Start playing a video on the page. VortexDL captures the stream URL together with the headers needed to download it.</string>
+
+    <string name="action_clear_all">Clear all</string>
+    <string name="action_close">Close</string>
+    <string name="action_copy_link">Copy link</string>
+    <string name="action_open_link">Open in browser</string>
+    <string name="action_copy_link_for">Copy link for %1$s</string>
+    <string name="action_open_link_for">Open %1$s in a browser</string>
+    <string name="action_preview_for">Preview %1$s</string>
+
+    <string name="media_untitled">Untitled video</string>
+    <string name="media_unknown_host">Unknown source</string>
+    <plurals name="detected_media_headers">
+        <item quantity="one">%1$d header</item>
+        <item quantity="other">%1$d headers</item>
+    </plurals>
+
+    <string name="link_copied">Link copied to clipboard</string>
+    <string name="link_cannot_open">No app is available to open this link</string>
+    <string name="detected_media_cleared">Detected media cleared</string>
+
+    <plurals name="fab_content_description">
+        <item quantity="one">%1$d video detected. Show the list.</item>
+        <item quantity="other">%1$d videos detected. Show the list.</item>
+    </plurals>
+</resources>
