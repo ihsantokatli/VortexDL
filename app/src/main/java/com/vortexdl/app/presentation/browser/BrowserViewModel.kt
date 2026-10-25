@@ -3,6 +3,7 @@ package com.vortexdl.app.presentation.browser
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vortexdl.app.domain.model.DetectedMedia
+import com.vortexdl.app.domain.repository.DownloadRepository
 import com.vortexdl.app.domain.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -19,6 +20,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class BrowserViewModel @Inject constructor(
     private val mediaRepository: MediaRepository,
+    private val downloadRepository: DownloadRepository,
 ) : ViewModel(), BrowserWebViewCallbacks {
 
     private val _uiState = MutableStateFlow(BrowserUiState())
@@ -91,6 +93,12 @@ class BrowserViewModel @Inject constructor(
 
     fun clearDetectedMedia() {
         mediaRepository.clear()
+    }
+
+    fun downloadMedia(media: DetectedMedia) {
+        viewModelScope.launch {
+            downloadRepository.enqueueDownload(media)
+        }
     }
 
     override fun onPageStarted(url: String) {

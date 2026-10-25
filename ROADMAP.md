@@ -8,11 +8,11 @@
 - [x] Implement `VideoSnifferWebView` using `AndroidView` and `shouldInterceptRequest` to detect `.mp4`, `.m3u8`, `.mpd`, `.webm` links and headers.
 - [x] Build `MainActivity` & `BrowserScreen`: Top URL/Search bar, WebView container, dynamic badge FloatingActionButton showing detected video count, and a `ModalBottomSheet` listing captured videos.
 
-## Phase 2: Direct Download Engine (.mp4 / .webm) & Room Database
-- [ ] Setup Room Database (`DownloadEntity`, `DownloadDao`) for download history and state tracking.
-- [ ] Implement OkHttp-based `FileDownloader` supporting custom headers (`Referer`, `User-Agent`, `Cookie`) and pause/resume (`Range` header).
-- [ ] Create `DownloadForegroundService` with persistent progress notification.
-- [ ] Build `DownloadsScreen` to monitor active and completed downloads.
+## Phase 2: Direct Download Engine (.mp4 / .webm) & Room Database (COMPLETED)
+- [x] Setup Room Database (`DownloadEntity`, `DownloadDao`, `DownloadDatabase`) for download history and state tracking.
+- [x] Implement OkHttp-based `FileDownloader` supporting custom headers (`Referer`, `User-Agent`, `Cookie`) and pause/resume (`Range` header).
+- [x] Create `DownloadForegroundService` with persistent progress notification and Scoped Storage file saving.
+- [x] Build `DownloadsScreen` & bottom navigation to monitor active and completed downloads, open files, and manage download lifecycle.
 
 ## Phase 3: HLS (.m3u8) Stream Downloader & Merger
 - [ ] Implement `.m3u8` Master and Media playlist parser to extract resolution variants and `.ts` segment URLs.

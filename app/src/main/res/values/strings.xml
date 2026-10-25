@@ -11,6 +11,9 @@
     <string name="action_clear_address">Clear address</string>
     <string name="action_go">Go</string>
 
+    <string name="nav_browser">Browser</string>
+    <string name="nav_downloads">Downloads</string>
+
     <string name="detected_media_title">Detected media</string>
     <string name="detected_media_description">Videos and streams captured from this page</string>
     <plurals name="detected_media_count">
@@ -19,6 +22,34 @@
     </plurals>
     <string name="detected_media_empty_title">No media captured yet</string>
     <string name="detected_media_empty_body">Start playing a video on the page. VortexDL captures the stream URL together with the headers needed to download it.</string>
+
+    <string name="action_download">Download</string>
+    <string name="action_download_for">Download %1$s</string>
+    <string name="download_queued">Download added to queue</string>
+    <string name="action_view_downloads">View in Downloads</string>
+
+    <string name="tab_all">All</string>
+    <string name="tab_active">Active</string>
+    <string name="tab_completed">Completed</string>
+
+    <string name="downloads_title">Downloads</string>
+    <string name="downloads_empty_title">No downloads here</string>
+    <string name="downloads_empty_body">Captured videos you choose to download will appear in this list.</string>
+
+    <string name="status_queued">Queued</string>
+    <string name="status_downloading">Downloading</string>
+    <string name="status_paused">Paused</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_failed">Failed</string>
+    <string name="status_cancelled">Cancelled</string>
+
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_open_file">Open</string>
+    <string name="file_not_found">File could not be found on storage</string>
+    <string name="streaming_format_notice">Stream format (.m3u8/.mpd) requires segment merging (coming in Phase 3)</string>
 
     <string name="action_clear_all">Clear all</string>
     <string name="action_close">Close</string>

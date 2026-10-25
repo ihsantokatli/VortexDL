@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +44,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun BrowserScreen(
     viewModel: BrowserViewModel,
+    onNavigateToDownloads: () -> Unit = {},
+    isTabActive: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -54,6 +58,8 @@ fun BrowserScreen(
     val linkCopiedMessage = stringResource(R.string.link_copied)
     val linkCannotOpenMessage = stringResource(R.string.link_cannot_open)
     val mediaClearedMessage = stringResource(R.string.detected_media_cleared)
+    val downloadQueuedMessage = stringResource(R.string.download_queued)
+    val viewDownloadsLabel = stringResource(R.string.action_view_downloads)
     val untitledMedia = stringResource(R.string.media_untitled)
 
     fun showSnackbar(message: String) {
@@ -66,6 +72,22 @@ fun BrowserScreen(
             sheetState.hide()
             isSheetVisible = false
             action()
+        }
+    }
+
+    fun startDownload(media: DetectedMedia) {
+        viewModel.downloadMedia(media)
+        dismissSheetThen {
+            scope.launch {
+                val result = snackbarHostState.showSnackbar(
+                    message = downloadQueuedMessage,
+                    actionLabel = viewDownloadsLabel,
+                    duration = SnackbarDuration.Short,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    onNavigateToDownloads()
+                }
+            }
         }
     }
 
@@ -94,7 +116,7 @@ fun BrowserScreen(
         dismissSheetThen { viewModel.onMediaSelected(media) }
     }
 
-    BackHandler(enabled = uiState.canGoBack && !isSheetVisible) {
+    BackHandler(enabled = isTabActive && uiState.canGoBack && !isSheetVisible) {
         viewModel.goBack()
     }
 
@@ -146,6 +168,7 @@ fun BrowserScreen(
             sheetState = sheetState,
             onDismissRequest = { isSheetVisible = false },
             onPreview = ::previewMedia,
+            onDownload = ::startDownload,
             onCopyLink = ::copyLink,
             onOpenExternally = ::openExternally,
             onClearAll = ::clearDetectedMedia,

@@ -20,12 +20,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
@@ -47,9 +50,6 @@ import java.util.Locale
 
 /**
  * Bottom sheet listing every media resource captured by the sniffer.
- *
- * Tapping a row previews the stream inside the WebView; the trailing buttons copy
- * the URL or hand it to an external app.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +58,7 @@ fun DetectedMediaSheet(
     sheetState: SheetState,
     onDismissRequest: () -> Unit,
     onPreview: (DetectedMedia) -> Unit,
+    onDownload: (DetectedMedia) -> Unit,
     onCopyLink: (DetectedMedia) -> Unit,
     onOpenExternally: (DetectedMedia) -> Unit,
     onClearAll: () -> Unit,
@@ -94,6 +95,7 @@ fun DetectedMediaSheet(
                         MediaRow(
                             media = media,
                             onPreview = { onPreview(media) },
+                            onDownload = { onDownload(media) },
                             onCopyLink = { onCopyLink(media) },
                             onOpenExternally = { onOpenExternally(media) },
                         )
@@ -193,6 +195,7 @@ private fun EmptyState() {
 private fun MediaRow(
     media: DetectedMedia,
     onPreview: () -> Unit,
+    onDownload: () -> Unit,
     onCopyLink: () -> Unit,
     onOpenExternally: () -> Unit,
 ) {
@@ -250,6 +253,20 @@ private fun MediaRow(
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            FilledTonalIconButton(
+                onClick = onDownload,
+                modifier = Modifier.size(40.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Download,
+                    contentDescription = stringResource(R.string.action_download_for, title),
+                    modifier = Modifier.size(20.dp),
+                )
+            }
             IconButton(
                 onClick = onCopyLink,
                 modifier = Modifier.size(40.dp),
