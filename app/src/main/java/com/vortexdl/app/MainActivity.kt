@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -12,6 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -32,7 +34,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,6 +63,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        if (BuildConfig.DEBUG) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
 
         requestNotificationPermissionIfNeeded()
         SharedUrlExtractor.extract(intent)?.let(browserViewModel::setInitialUrl)
@@ -112,6 +117,7 @@ private fun MainContent(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -160,21 +166,14 @@ private fun MainContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(bottom = innerPadding.calculateBottomPadding()),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        alpha = if (currentDestination == NavDestination.BROWSER) 1f else 0f
-                    },
-            ) {
-                BrowserScreen(
-                    viewModel = browserViewModel,
-                    isTabActive = currentDestination == NavDestination.BROWSER,
-                    onNavigateToDownloads = { currentDestination = NavDestination.DOWNLOADS },
-                )
-            }
+            BrowserScreen(
+                viewModel = browserViewModel,
+                isTabActive = currentDestination == NavDestination.BROWSER,
+                onNavigateToDownloads = { currentDestination = NavDestination.DOWNLOADS },
+                modifier = Modifier.fillMaxSize(),
+            )
 
             if (currentDestination == NavDestination.DOWNLOADS) {
                 DownloadsScreen(

@@ -2,6 +2,7 @@ package com.vortexdl.app.domain.repository
 
 import com.vortexdl.app.domain.model.DetectedMedia
 import com.vortexdl.app.domain.model.DownloadItem
+import com.vortexdl.app.domain.model.VideoQualityOption
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -14,7 +15,13 @@ interface DownloadRepository {
 
     fun getDownload(id: String): Flow<DownloadItem?>
 
-    suspend fun enqueueDownload(media: DetectedMedia): String
+    suspend fun enqueueDownload(
+        media: DetectedMedia,
+        selectedResolution: String? = null,
+        selectedUrl: String? = null,
+    ): String
+
+    suspend fun fetchHlsQualityOptions(media: DetectedMedia): List<VideoQualityOption>
 
     suspend fun pauseDownload(id: String)
 

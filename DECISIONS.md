@@ -28,3 +28,20 @@
 - **Status:** Accepted
 - **Context:** Video players poll chunklists and fragments repeatedly, firing multiple requests for identical video URLs.
 - **Decision:** Deduplicate detected media URLs in `MediaRepositoryImpl` (ignoring URL fragments) and limit in-memory tracking to the most recent items (bounded to 200 items) to prevent memory leaks.
+
+## ADR 006: WebView Ownership and Lifetime
+- **Status:** Accepted
+- **Context:** The browser stayed blank on launch. A `DisposableEffect` keyed on the `WebView` instance called `stopLoading()`, `removeView()` and `destroy()` in `onDispose`, then reset the state that keyed the effect (`webView = null`). Any effect churn (recomposition, lifecycle-local or state updates) therefore destroyed the view while its `ViewFactoryHolder` stayed attached, leaving a blank container and a progress bar that never finished.
+- **Decision:** The `AndroidView` node is the sole owner of the WebView lifetime:
+  - Creation: `AndroidView(factory)` — configure, load the start URL, publish the instance to state used by the command collector.
+  - Release: `AndroidView(onRelease)` — `stopLoading()`, detach from parent, `destroy()`, clear the state. This also covers renderer-process recovery (`key(generation)`).
+  - Pause/resume: `LifecycleEventEffect(ON_PAUSE/ON_RESUME)` calls `onPause()`/`onResume()`; no effect is ever allowed to destroy or detach a live view.
+  - Tab switching only toggles `View.VISIBLE`/`View.GONE` so page state and session survive navigation between Browser and Downloads.
+
+## ADR 007: Domain-Scoped User-Agent & Telemetry Filtering for YouTube
+- **Status:** Accepted
+- **Context:** Modern YouTube serves encrypted MediaSource Extension (MSE) binary SABR streams to Android Chrome User-Agents, while emitting 30-byte (0.03KB) `/videoplayback` preconnect and telemetry pings on homepage/feed navigation. Stripping signed query parameters (`range`) also broke cryptographic CDN signatures (`sparams`), returning HTTP 403 Forbidden.
+- **Decision:**
+  - Spoof `IPHONE_USER_AGENT` exclusively when browsing YouTube domains (`*.youtube.com`, `youtu.be`), forcing YouTube to output standard Apple HTML5 HLS (`.m3u8`) playlists. All other sites retain standard Chrome Mobile User-Agent.
+  - In `MediaUrlDetector`, strictly filter out `/videoplayback` pings on non-watch pages (`isYouTubeWatchUrl`), reject items with `clen < 100_000L` and `dur < 3.0s`, and preserve `range` when signed in `sparams`.
+  - In `VortexDLWebViewClient`, probe for `hlsManifestUrl` and HTML5 `<video src>` on watch pages, feeding genuine HLS streams into our Phase 3 `HlsDownloader` and `QualitySelectionSheet`.

@@ -24,6 +24,7 @@ data class DownloadEntity(
     val createdAt: Long,
     val completedAt: Long?,
     val errorMessage: String?,
+    val resolution: String? = null,
 ) {
     fun toDomainModel(): DownloadItem {
         val parsedStatus = runCatching {
@@ -45,6 +46,7 @@ data class DownloadEntity(
             createdAt = createdAt,
             completedAt = completedAt,
             errorMessage = errorMessage,
+            resolution = resolution,
         )
     }
 
@@ -64,6 +66,7 @@ data class DownloadEntity(
             createdAt = item.createdAt,
             completedAt = item.completedAt,
             errorMessage = item.errorMessage,
+            resolution = item.resolution,
         )
     }
 }

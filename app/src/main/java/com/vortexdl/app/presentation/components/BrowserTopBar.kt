@@ -3,10 +3,8 @@ package com.vortexdl.app.presentation.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -122,13 +120,14 @@ fun BrowserTopBar(
                 Surface(
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 44.dp),
+                        .height(44.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant,
                 ) {
                     Row(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .fillMaxWidth()
+                            .height(44.dp)
                             .padding(start = 12.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -141,8 +140,7 @@ fun BrowserTopBar(
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(vertical = 12.dp),
+                                .weight(1f),
                             contentAlignment = Alignment.CenterStart,
                         ) {
                             if (address.isEmpty()) {

@@ -3,6 +3,7 @@ package com.vortexdl.app.presentation.browser
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vortexdl.app.domain.model.DetectedMedia
+import com.vortexdl.app.domain.model.VideoQualityOption
 import com.vortexdl.app.domain.repository.DownloadRepository
 import com.vortexdl.app.domain.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -96,8 +97,74 @@ class BrowserViewModel @Inject constructor(
     }
 
     fun downloadMedia(media: DetectedMedia) {
+        if (media.isStreamingFormat) {
+            viewModelScope.launch {
+                _uiState.update {
+                    it.copy(
+                        qualitySelectionMedia = media,
+                        qualityOptions = emptyList(),
+                        isLoadingQualities = true,
+                    )
+                }
+                val options = downloadRepository.fetchHlsQualityOptions(media)
+                if (options.size > 1) {
+                    _uiState.update {
+                        it.copy(
+                            qualityOptions = options,
+                            isLoadingQualities = false,
+                        )
+                    }
+                } else {
+                    // 1 or no variant options found; download immediately
+                    _uiState.update {
+                        it.copy(
+                            qualitySelectionMedia = null,
+                            qualityOptions = emptyList(),
+                            isLoadingQualities = false,
+                        )
+                    }
+                    val singleOption = options.firstOrNull()
+                    downloadRepository.enqueueDownload(
+                        media = media,
+                        selectedResolution = singleOption?.resolution ?: media.resolution,
+                        selectedUrl = singleOption?.url,
+                    )
+                }
+            }
+        } else {
+            viewModelScope.launch {
+                downloadRepository.enqueueDownload(
+                    media = media,
+                    selectedResolution = media.resolution,
+                )
+            }
+        }
+    }
+
+    fun onQualitySelected(media: DetectedMedia, option: VideoQualityOption) {
+        _uiState.update {
+            it.copy(
+                qualitySelectionMedia = null,
+                qualityOptions = emptyList(),
+                isLoadingQualities = false,
+            )
+        }
         viewModelScope.launch {
-            downloadRepository.enqueueDownload(media)
+            downloadRepository.enqueueDownload(
+                media = media,
+                selectedResolution = option.resolution,
+                selectedUrl = option.url,
+            )
+        }
+    }
+
+    fun dismissQualitySelection() {
+        _uiState.update {
+            it.copy(
+                qualitySelectionMedia = null,
+                qualityOptions = emptyList(),
+                isLoadingQualities = false,
+            )
         }
     }
 

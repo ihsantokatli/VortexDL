@@ -20,6 +20,7 @@ data class DownloadItem(
     val createdAt: Long,
     val completedAt: Long?,
     val errorMessage: String?,
+    val resolution: String? = null,
 ) {
     val progress: Float
         get() = when {

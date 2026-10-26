@@ -14,6 +14,6 @@
 - [x] Create `DownloadForegroundService` with persistent progress notification and Scoped Storage file saving.
 - [x] Build `DownloadsScreen` & bottom navigation to monitor active and completed downloads, open files, and manage download lifecycle.
 
-## Phase 3: HLS (.m3u8) Stream Downloader & Merger
-- [ ] Implement `.m3u8` Master and Media playlist parser to extract resolution variants and `.ts` segment URLs.
-- [ ] Integrate segment downloading and merging into a single `.mp4` container.
+## Phase 3: HLS (.m3u8) Stream Downloader & Merger (COMPLETED)
+- [x] Implement `.m3u8` Master and Media playlist parser to extract resolution variants and `.ts` segment URLs.
+- [x] Integrate segment downloading and merging into a single `.mp4` container.

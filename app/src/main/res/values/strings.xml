@@ -74,4 +74,8 @@
         <item quantity="one">%1$d video detected. Show the list.</item>
         <item quantity="other">%1$d videos detected. Show the list.</item>
     </plurals>
+
+    <string name="select_quality_title">Select Video Quality</string>
+    <string name="quality_best">Best Available Quality</string>
+    <string name="fetching_qualities">Checking available resolutions…</string>
 </resources>

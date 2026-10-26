@@ -15,6 +15,7 @@ data class DetectedMedia(
     val extension: String,
     val requestHeaders: Map<String, String>,
     val timestamp: Long,
+    val resolution: String? = null,
 ) {
     /** True for manifest-based streaming formats that need segment resolving before download. */
     val isStreamingFormat: Boolean

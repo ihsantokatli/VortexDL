@@ -34,6 +34,7 @@ import com.vortexdl.app.domain.model.DetectedMedia
 import com.vortexdl.app.presentation.components.BrowserTopBar
 import com.vortexdl.app.presentation.components.DetectedMediaFab
 import com.vortexdl.app.presentation.components.DetectedMediaSheet
+import com.vortexdl.app.presentation.components.QualitySelectionSheet
 import kotlinx.coroutines.launch
 
 /**
@@ -157,6 +158,7 @@ fun BrowserScreen(
         ) {
             VideoSnifferWebView(
                 viewModel = viewModel,
+                isTabActive = isTabActive,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -172,6 +174,18 @@ fun BrowserScreen(
             onCopyLink = ::copyLink,
             onOpenExternally = ::openExternally,
             onClearAll = ::clearDetectedMedia,
+        )
+    }
+
+    uiState.qualitySelectionMedia?.let { media ->
+        QualitySelectionSheet(
+            media = media,
+            options = uiState.qualityOptions,
+            isLoading = uiState.isLoadingQualities,
+            onDismissRequest = { viewModel.dismissQualitySelection() },
+            onDownloadSelected = { option ->
+                viewModel.onQualitySelected(media, option)
+            },
         )
     }
 }

@@ -187,7 +187,7 @@ private fun DownloadItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                FormatPill(extension = item.extension)
+                FormatPill(extension = item.extension, resolution = item.resolution)
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -197,8 +197,9 @@ private fun DownloadItemCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
+                    val qualityPrefix = if (!item.resolution.isNullOrBlank()) "${item.resolution} · " else ""
                     Text(
-                        text = "${item.formattedDownloaded} / ${item.formattedTotal} ${if (item.formattedSpeed.isNotEmpty()) "· ${item.formattedSpeed}" else ""}",
+                        text = "$qualityPrefix${item.formattedDownloaded} / ${item.formattedTotal} ${if (item.formattedSpeed.isNotEmpty()) "· ${item.formattedSpeed}" else ""}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -371,14 +372,15 @@ private fun StatusTag(status: DownloadStatus) {
 }
 
 @Composable
-private fun FormatPill(extension: String) {
-    val clean = extension.uppercase(Locale.US)
+private fun FormatPill(extension: String, resolution: String? = null) {
+    val clean = if (extension.equals("m3u8", ignoreCase = true)) "MP4" else extension.uppercase(Locale.US)
+    val text = if (!resolution.isNullOrBlank()) "$clean · $resolution" else clean
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Text(
-            text = clean,
+            text = text,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             fontWeight = FontWeight.Bold,

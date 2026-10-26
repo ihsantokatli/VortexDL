@@ -19,6 +19,7 @@ import com.vortexdl.app.data.local.DownloadDao
 import com.vortexdl.app.data.local.DownloadEntity
 import com.vortexdl.app.data.network.DownloadResult
 import com.vortexdl.app.data.network.FileDownloader
+import com.vortexdl.app.data.network.hls.HlsDownloader
 import com.vortexdl.app.domain.model.DownloadItem
 import com.vortexdl.app.domain.model.DownloadStatus
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,6 +41,9 @@ class DownloadForegroundService : Service() {
 
     @Inject
     lateinit var fileDownloader: FileDownloader
+
+    @Inject
+    lateinit var hlsDownloader: HlsDownloader
 
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
@@ -107,32 +111,64 @@ class DownloadForegroundService : Service() {
                 "VortexDL",
             ).apply { mkdirs() }
 
-            val fileName = FileDownloader.sanitizeFileName(entity.title, entity.extension)
+            val isHls = entity.extension.equals("m3u8", ignoreCase = true) ||
+                entity.mimeType.contains("mpegurl", ignoreCase = true)
+
+            val outputExtension = if (isHls) "mp4" else entity.extension
+            val titleWithQuality = if (!entity.resolution.isNullOrBlank() && !entity.title.contains(entity.resolution, ignoreCase = true)) {
+                "${entity.title} [${entity.resolution}]"
+            } else {
+                entity.title
+            }
+            val fileName = FileDownloader.sanitizeFileName(titleWithQuality, outputExtension)
             val targetFile = File(downloadsDir, fileName)
 
-            val result = fileDownloader.download(
-                url = entity.url,
-                headers = entity.requestHeaders,
-                targetFile = targetFile,
-                onProgress = { downloaded, total, speed ->
-                    downloadDao.updateProgress(
-                        id = entity.id,
-                        downloadedBytes = downloaded,
-                        totalBytes = total,
-                        speed = speed,
-                    )
+            val notificationTitle = if (!entity.resolution.isNullOrBlank() && !entity.title.contains(entity.resolution, ignoreCase = true)) {
+                "${entity.title} [${entity.resolution}]"
+            } else {
+                entity.title
+            }
 
-                    val progressPercent = if (total > 0) ((downloaded * 100) / total).toInt() else 0
-                    updateNotification(
-                        title = entity.title,
-                        body = "${DownloadItem.formatBytes(downloaded)} / ${if (total > 0) DownloadItem.formatBytes(total) else "?"}",
-                        progress = progressPercent,
-                        speed = speed,
-                        downloadId = entity.id,
-                    )
-                },
-                isCancelled = { pausedIds.contains(entity.id) },
-            )
+            val onProgressCallback: suspend (Long, Long, Long) -> Unit = { downloaded, total, speed ->
+                downloadDao.updateProgress(
+                    id = entity.id,
+                    downloadedBytes = downloaded,
+                    totalBytes = total,
+                    speed = speed,
+                )
+
+                val progressPercent = if (total > 0) ((downloaded * 100) / total).toInt() else 0
+                updateNotification(
+                    title = notificationTitle,
+                    body = "${DownloadItem.formatBytes(downloaded)} / ${if (total > 0) DownloadItem.formatBytes(total) else "?"}",
+                    progress = progressPercent,
+                    speed = speed,
+                    downloadId = entity.id,
+                )
+            }
+
+            val isCancelledCheck = { pausedIds.contains(entity.id) }
+
+            val result = if (isHls) {
+                val tempDir = File(cacheDir, "hls_${entity.id}")
+                hlsDownloader.download(
+                    url = entity.url,
+                    headers = entity.requestHeaders,
+                    targetFile = targetFile,
+                    tempDir = tempDir,
+                    preferredResolution = entity.resolution,
+                    onProgress = onProgressCallback,
+                    isCancelled = isCancelledCheck,
+                )
+            } else {
+                fileDownloader.download(
+                    url = entity.url,
+                    headers = entity.requestHeaders,
+                    targetFile = targetFile,
+                    onProgress = onProgressCallback,
+                    isCancelled = isCancelledCheck,
+                )
+            }
 
             activeJobs.remove(entity.id)
 
@@ -187,6 +223,7 @@ class DownloadForegroundService : Service() {
             entity?.filePath?.let { path ->
                 File(path).delete()
             }
+            File(cacheDir, "hls_$downloadId").deleteRecursively()
             downloadDao.updateStatus(downloadId, DownloadStatus.CANCELLED.name)
             checkQueueAndStart()
         }

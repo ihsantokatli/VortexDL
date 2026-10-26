@@ -1,6 +1,7 @@
 package com.vortexdl.app.data.network
 
 import com.vortexdl.app.domain.model.DetectedMedia
+import com.vortexdl.app.domain.model.ResolutionHelper
 import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -33,26 +34,163 @@ class MediaUrlDetector @Inject constructor() {
             return null
         }
 
-        val path = pathOf(url) ?: return null
-        val extension = supportedExtension(path) ?: return null
-        val mimeType = MIME_TYPES.getValue(extension)
         val host = safeUri(url)?.host
+        val path = pathOf(url) ?: return null
+
+        val isPlayback = path.contains("videoplayback")
+        val classification = if (isPlayback) {
+            classifyGoogleVideo(url, host, pageUrl)
+        } else {
+            classifyQueryMime(url) ?: classifyPathExtension(url, path)
+        } ?: return null
+
+        val title = buildTitle(path, pageTitle, host)
+        val resolution = classification.resolution
+            ?: ResolutionHelper.extractFromUrlOrTitle(classification.canonicalUrl, title)
 
         return DetectedMedia(
             id = UUID.randomUUID().toString(),
-            url = url,
-            title = buildTitle(path, pageTitle, host),
-            mimeType = mimeType,
-            extension = extension,
+            url = classification.canonicalUrl,
+            title = title,
+            mimeType = classification.mimeType,
+            extension = classification.extension,
             requestHeaders = buildHeaders(
                 requestHeaders = requestHeaders,
-                mediaUrl = url,
+                mediaUrl = classification.canonicalUrl,
                 pageUrl = pageUrl,
                 pageCookies = pageCookies,
                 defaultUserAgent = defaultUserAgent,
             ),
             timestamp = System.currentTimeMillis(),
+            resolution = resolution,
         )
+    }
+
+    private fun classifyGoogleVideo(
+        url: String,
+        host: String?,
+        pageUrl: String?,
+    ): MediaClassification? {
+        if (host == null || (!host.equals("googlevideo.com", ignoreCase = true) && !host.endsWith(".googlevideo.com", ignoreCase = true))) {
+            return null
+        }
+        if (!url.contains("/videoplayback")) {
+            return null
+        }
+
+        // 1. If pageUrl is on YouTube, ensure user is actually on a watch page.
+        // Pings/preconnects on home page, search, feed, etc. are eliminated.
+        if (isYouTubeDomain(pageUrl) && !isYouTubeWatchUrl(pageUrl)) {
+            return null
+        }
+
+        val query = url.substringAfter('?', "")
+        val queryParams = query.split('&').associate {
+            val idx = it.indexOf('=')
+            if (idx > 0) it.substring(0, idx) to it.substring(idx + 1) else it to ""
+        }
+
+        // 2. Reject tiny telemetry/preconnect pings (< 100KB with missing or < 3.0s duration)
+        val clen = queryParams["clen"]?.toLongOrNull()
+        val dur = queryParams["dur"]?.toDoubleOrNull()
+        if (clen != null && clen < 100_000L && (dur == null || dur < 3.0)) {
+            return null
+        }
+
+        val itag = queryParams["itag"]?.toIntOrNull()
+
+        // 3. Google video streams must have an itag
+        if (itag == null || (clen != null && clen == 0L)) {
+            return null
+        }
+
+        val canonicalUrl = cleanGoogleVideoUrl(url)
+
+        val rawMime = queryParams["mime"]
+        val decodedMime = rawMime?.let { runCatching { URLDecoder.decode(it, StandardCharsets.UTF_8.name()) }.getOrNull() }
+
+        val (ext, mime) = when {
+            decodedMime?.contains("video/mp4", ignoreCase = true) == true -> "mp4" to "video/mp4"
+            decodedMime?.contains("video/webm", ignoreCase = true) == true -> "webm" to "video/webm"
+            decodedMime?.contains("audio/mp4", ignoreCase = true) == true -> "m4a" to "audio/mp4"
+            decodedMime?.contains("audio/webm", ignoreCase = true) == true -> "webm" to "audio/webm"
+            itag in WEBM_ITAGS -> "webm" to (if (itag in AUDIO_ITAGS) "audio/webm" else "video/webm")
+            itag in AUDIO_ITAGS -> "m4a" to "audio/mp4"
+            else -> "mp4" to "video/mp4"
+        }
+
+        val resolution = resolutionFromItag(itag)
+
+        return MediaClassification(
+            canonicalUrl = canonicalUrl,
+            extension = ext,
+            mimeType = mime,
+            resolution = resolution,
+        )
+    }
+
+    private fun cleanGoogleVideoUrl(url: String): String {
+        val base = url.substringBefore('?')
+        val query = url.substringAfter('?', "")
+        if (query.isEmpty()) return url
+
+        val sparams = query.split('&')
+            .firstOrNull { it.startsWith("sparams=") }
+            ?.substringAfter("sparams=")
+            ?.split(',')
+            ?: emptyList()
+
+        val sparamsIncludeRange = sparams.contains("range")
+
+        val cleanedParams = query.split('&').filterNot { param ->
+            (!sparamsIncludeRange && param.startsWith("range=")) ||
+                param.startsWith("rn=") ||
+                param.startsWith("rbuf=")
+        }
+
+        return if (cleanedParams.isEmpty()) base else "$base?${cleanedParams.joinToString("&")}"
+    }
+
+    private fun classifyQueryMime(url: String): MediaClassification? {
+        val query = url.substringAfter('?', "")
+        if (query.isEmpty()) return null
+
+        val rawMime = query.split('&').firstOrNull { it.startsWith("mime=") }?.substringAfter("mime=")
+            ?: query.split('&').firstOrNull { it.startsWith("type=") }?.substringAfter("type=")
+        val decoded = rawMime?.let { runCatching { URLDecoder.decode(it, StandardCharsets.UTF_8.name()) }.getOrNull() }?.lowercase(Locale.US)
+            ?: return null
+
+        return when {
+            decoded.contains("video/mp4") -> MediaClassification(url, "mp4", "video/mp4")
+            decoded.contains("video/webm") -> MediaClassification(url, "webm", "video/webm")
+            decoded.contains("application/vnd.apple.mpegurl") || decoded.contains("x-mpegurl") -> MediaClassification(url, "m3u8", "application/vnd.apple.mpegurl")
+            decoded.contains("application/dash+xml") -> MediaClassification(url, "mpd", "application/dash+xml")
+            decoded.contains("audio/mp4") || decoded.contains("audio/m4a") -> MediaClassification(url, "m4a", "audio/mp4")
+            else -> null
+        }
+    }
+
+    private fun classifyPathExtension(url: String, path: String): MediaClassification? {
+        val ext = supportedExtension(path) ?: return null
+        return MediaClassification(
+            canonicalUrl = url,
+            extension = ext,
+            mimeType = MIME_TYPES.getValue(ext),
+        )
+    }
+
+    private fun resolutionFromItag(itag: Int?): String? = when (itag) {
+        313 -> "4K"
+        271 -> "1440p"
+        137, 248 -> "1080p"
+        22, 136, 247 -> "720p"
+        135, 244, 245 -> "480p"
+        18, 134, 243 -> "360p"
+        133, 242 -> "240p"
+        160, 278 -> "144p"
+        140 -> "Audio (M4A)"
+        251 -> "Audio (Opus)"
+        else -> null
     }
 
     private fun supportedExtension(path: String): String? {
@@ -134,7 +272,17 @@ class MediaUrlDetector @Inject constructor() {
 
         val cleanPageTitle = pageTitle
             ?.trim()
-            ?.takeIf { it.isNotEmpty() && !it.startsWith("http", ignoreCase = true) && it.length <= 120 }
+            ?.substringBefore(" - YouTube")
+            ?.substringBefore(" | YouTube")
+            ?.substringBefore(" - YouTube Music")
+            ?.trim()
+            ?.takeIf {
+                it.isNotEmpty() &&
+                    !it.startsWith("http", ignoreCase = true) &&
+                    it.length <= 120 &&
+                    !it.equals("YouTube", ignoreCase = true) &&
+                    !it.equals("Home", ignoreCase = true)
+            }
 
         return when {
             fileBase.isNotBlank() &&
@@ -144,6 +292,20 @@ class MediaUrlDetector @Inject constructor() {
             !host.isNullOrBlank() -> host
             else -> DEFAULT_TITLE
         }
+    }
+
+    private fun isYouTubeDomain(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        val host = safeUri(url)?.host?.lowercase(Locale.US) ?: return false
+        return host == "youtube.com" || host.endsWith(".youtube.com") || host == "youtu.be"
+    }
+
+    private fun isYouTubeWatchUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        return url.contains("youtube.com/watch", ignoreCase = true) ||
+            url.contains("youtu.be/", ignoreCase = true) ||
+            url.contains("youtube.com/shorts/", ignoreCase = true) ||
+            url.contains("youtube.com/embed/", ignoreCase = true)
     }
 
     private fun originOf(pageUrl: String?): String? {
@@ -165,12 +327,22 @@ class MediaUrlDetector @Inject constructor() {
     private fun Map<String, String>.containsKeyIgnoreCase(key: String): Boolean =
         keys.any { it.equals(key, ignoreCase = true) }
 
+    private data class MediaClassification(
+        val canonicalUrl: String,
+        val extension: String,
+        val mimeType: String,
+        val resolution: String? = null,
+    )
+
     private companion object {
         const val USER_AGENT = "User-Agent"
         const val REFERER = "Referer"
         const val ORIGIN = "Origin"
         const val COOKIE = "Cookie"
         const val DEFAULT_TITLE = "Video"
+
+        val WEBM_ITAGS = setOf(248, 247, 244, 245, 243, 242, 278, 313, 271, 251)
+        val AUDIO_ITAGS = setOf(140, 251)
 
         val MIME_TYPES = mapOf(
             "mp4" to "video/mp4",
@@ -209,6 +381,7 @@ class MediaUrlDetector @Inject constructor() {
             "download",
             "watch",
             "default",
+            "videoplayback",
         )
     }
 }

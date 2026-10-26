@@ -3,9 +3,11 @@ package com.vortexdl.app.data.repository
 import android.content.Context
 import com.vortexdl.app.data.local.DownloadDao
 import com.vortexdl.app.data.local.DownloadEntity
+import com.vortexdl.app.data.network.hls.HlsDownloader
 import com.vortexdl.app.domain.model.DetectedMedia
 import com.vortexdl.app.domain.model.DownloadItem
 import com.vortexdl.app.domain.model.DownloadStatus
+import com.vortexdl.app.domain.model.VideoQualityOption
 import com.vortexdl.app.domain.repository.DownloadRepository
 import com.vortexdl.app.service.DownloadForegroundService
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -27,6 +29,7 @@ import kotlinx.coroutines.withContext
 class DownloadRepositoryImpl @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val downloadDao: DownloadDao,
+    private val hlsDownloader: HlsDownloader,
 ) : DownloadRepository {
 
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -42,11 +45,18 @@ class DownloadRepositoryImpl @Inject constructor(
     override fun getDownload(id: String): Flow<DownloadItem?> =
         downloadDao.getDownloadByIdFlow(id).map { it?.toDomainModel() }
 
-    override suspend fun enqueueDownload(media: DetectedMedia): String = withContext(Dispatchers.IO) {
+    override suspend fun enqueueDownload(
+        media: DetectedMedia,
+        selectedResolution: String?,
+        selectedUrl: String?,
+    ): String = withContext(Dispatchers.IO) {
         val downloadId = UUID.randomUUID().toString()
+        val downloadUrl = selectedUrl ?: media.url
+        val resolution = selectedResolution ?: media.resolution
+
         val entity = DownloadEntity(
             id = downloadId,
-            url = media.url,
+            url = downloadUrl,
             title = media.title,
             mimeType = media.mimeType,
             extension = media.extension,
@@ -59,12 +69,18 @@ class DownloadRepositoryImpl @Inject constructor(
             createdAt = System.currentTimeMillis(),
             completedAt = null,
             errorMessage = null,
+            resolution = resolution,
         )
 
         downloadDao.insert(entity)
         DownloadForegroundService.startDownloadService(context)
         downloadId
     }
+
+    override suspend fun fetchHlsQualityOptions(media: DetectedMedia): List<VideoQualityOption> =
+        withContext(Dispatchers.IO) {
+            hlsDownloader.getStreamQualities(media.url, media.requestHeaders)
+        }
 
     override suspend fun pauseDownload(id: String) = withContext(Dispatchers.IO) {
         DownloadForegroundService.pauseDownload(context, id)
@@ -89,6 +105,7 @@ class DownloadRepositoryImpl @Inject constructor(
         if (removeFile && entity?.filePath != null) {
             runCatching { File(entity.filePath).delete() }
         }
+        runCatching { File(context.cacheDir, "hls_$id").deleteRecursively() }
         downloadDao.deleteById(id)
     }
 }

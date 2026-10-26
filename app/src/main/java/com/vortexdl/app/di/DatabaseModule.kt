@@ -23,7 +23,10 @@ object DatabaseModule {
         context,
         DownloadDatabase::class.java,
         "vortexdl.db",
-    ).fallbackToDestructiveMigration(dropAllTables = true).build()
+    )
+        .addMigrations(DownloadDatabase.MIGRATION_1_2)
+        .fallbackToDestructiveMigration(dropAllTables = true)
+        .build()
 
     @Provides
     @Singleton
